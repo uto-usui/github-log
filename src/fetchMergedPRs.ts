@@ -2,6 +2,15 @@ import 'dotenv/config'
 import fs from 'fs'
 import path from 'path'
 
+import { WebClient } from '@slack/web-api'
+
+// Get slack token from environment variables
+const slackToken = process.env.SLACK_TOKEN
+const channel = process.env.SLACK_CHANNEL ?? ''
+
+// Initialize slack web client
+const web = new WebClient(slackToken)
+
 // Token for authentication. Replace with your token.
 const token = process.env.GITHUB_TOKEN
 const userName = process.env.GITHUB_USER_NAME
@@ -56,5 +65,20 @@ fetch(
       }
       console.log('File has been created')
     })
+
+    const formattedMessage = items
+      .map((item: any, index: number) => {
+        return `*#${index + 1} PR Title: ${item.title}*\nClosed At: ${item.closed_at}\nURL: ${
+          item.url
+        }\nBody: ${item.body}\n\n`
+      })
+      .join('\n')
+
+    ;(async () => {
+      // See: https://api.slack.com/methods/chat.postMessage
+      const res = await web.chat.postMessage({ channel, text: formattedMessage })
+
+      console.log('Message sent: ', res.ts)
+    })()
   })
   .catch((error) => console.error(error))
