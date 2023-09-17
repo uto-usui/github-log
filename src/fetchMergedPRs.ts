@@ -17,7 +17,7 @@ const getDateString = (days: number) => {
 
 const sendMessageToSlack = async (message: string) => {
   const res = await web.chat.postMessage({ channel, text: message })
-  console.log('メッセージが送信されました: ', res.ts)
+  console.log('send message 🚀', res.ts)
 }
 
 const fetchPRsAndWriteToFile = async () => {
@@ -48,12 +48,12 @@ const fetchPRsAndWriteToFile = async () => {
   const filePath = path.join(dir, `mergedPRs_${sinceFormatted}_to_${todayFormatted}.json`)
   fs.writeFileSync(filePath, JSON.stringify(items, null, 2), 'utf8')
 
-  console.log('ファイルが作成されました')
+  console.log('created file 🔥')
 
   const formattedMessage = items
     .map(
       (item: any, index: number) =>
-        `*#${index + 1} 🔖 ${item.title}*\n ✔️ ${item.closed_at}\n 🔗 ${item.url}\n 📝 ${
+        `* 🔖 ${index + 1}. ${item.title}*\n ✔️ ${item.closed_at}\n 🔗 ${item.url}\n 📝 ${
           item.body ?? '🐈'
         }\n\n`
     )
@@ -62,4 +62,4 @@ const fetchPRsAndWriteToFile = async () => {
   sendMessageToSlack(formattedMessage).catch((error) => console.error(error))
 }
 
-fetchPRsAndWriteToFile().catch((error) => console.error('エラーが発生しました：', error))
+fetchPRsAndWriteToFile().catch((error) => console.error('error：', error))
