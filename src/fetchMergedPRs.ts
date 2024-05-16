@@ -46,8 +46,8 @@ const fetchPRs = async (since: string, until: string) => {
   return allItems
 }
 
-const fetchPRsAndWriteToFile = async () => {
-  const sinceFormatted = getDateString(180)
+const fetchPRsAndWriteToFile = async (days: number) => {
+  const sinceFormatted = getDateString(days)
   const todayFormatted = getDateString(0)
 
   const items = await fetchPRs(sinceFormatted, todayFormatted)
@@ -80,4 +80,6 @@ const fetchPRsAndWriteToFile = async () => {
   sendMessageToSlack(formattedMessage).catch((error) => console.error(error))
 }
 
-fetchPRsAndWriteToFile().catch((error) => console.error('error：', error))
+const days = parseInt(process.argv[2]) || 7
+
+fetchPRsAndWriteToFile(days).catch((error) => console.error('error：', error))
