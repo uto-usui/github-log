@@ -21,7 +21,7 @@ const sendMessageToSlack = async (message: string) => {
   console.log('send message 🚀', res.ts)
 }
 
-const fetchAllPRs = async (since: string, until: string) => {
+const fetchPRs = async (since: string, until: string) => {
   let page = 1
   let allItems = [] as any[]
 
@@ -50,7 +50,7 @@ const fetchPRsAndWriteToFile = async () => {
   const sinceFormatted = getDateString(180)
   const todayFormatted = getDateString(0)
 
-  const items = await fetchAllPRs(sinceFormatted, todayFormatted)
+  const items = await fetchPRs(sinceFormatted, todayFormatted)
 
   const formattedItems = items.map((item: any) => ({
     title: item.title,
