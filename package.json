@@ -5,7 +5,12 @@
     "build": "tsc",
     "watch": "tsc -w",
     "start": "node dist/fetchMergedPRs.js",
-    "clean": "rm -rf dist && rm -rf out"
+    "start:two-weeks": "node script.js 14",
+    "start:one-month": "node script.js 30",
+    "start:three-months": "node script.js 90",
+    "start:six-months": "node script.js 180",
+    "start:one-year": "node script.js 365",
+    "start:clean": "rm -rf dist && rm -rf out"
   },
   "packageManager": "pnpm@8.6.12",
   "devDependencies": {
