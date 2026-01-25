@@ -18,6 +18,7 @@ SLACK_TOKEN=<your Slack token>
 GITHUB_TOKEN=<your GitHub token>
 GITHUB_USER_NAME=<your GitHub username>
 SLACK_CHANNEL=<the Slack channel to send messages to>
+NOTION_DATABASE_URL=<Notion database URL for work logs (optional)>
 ```
 
 Replace each environment variable with the actual values.
