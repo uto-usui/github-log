@@ -1,5 +1,5 @@
 ---
-allowed-tools: [Read, Write, Bash, Glob, WebFetch, AskUserQuestion, mcp__notion__notion-fetch, mcp__notion__notion-create-pages]
+allowed-tools: [Read, Write, Bash, Glob, WebFetch, AskUserQuestion, mcp__notion__notion-fetch, mcp__notion__notion-create-pages, mcp__notion__notion-search]
 description: PRデータをLLMで分析・要約し、コミットログも深掘りしてSlack・Notionに投稿
 ---
 
@@ -459,6 +459,8 @@ curl -X POST https://slack.com/api/chat.postMessage \
 
 分析結果をNotionの「作業ログ」データベースに保存。後から検索・振り返りがしやすい形式で記録。
 
+**重要: ページ更新ではなく新規作成方式を使用する。** Notion MCP の `replace_content_range` / `replace_content` は、Notion内部のブロック構造とMarkdown表現のギャップにより `validation_error`（`body.update_page.data should be defined, instead was undefined`）が発生しやすい。そのため、既存ページの編集ではなく「新規作成 → 旧ページ削除案内」方式を採用する。
+
 #### 7.1 データベース情報の取得
 
 `.env`の`NOTION_DATABASE_URL`を使用してデータベース構造を取得：
@@ -470,9 +472,20 @@ mcp__notion__notion-fetch を使用:
 
 レスポンスから `data_source_id` を抽出（`collection://` 形式のURL）。
 
-#### 7.2 ページの作成
+#### 7.2 既存ページの確認
 
-`mcp__notion__notion-create-pages` を使用してレポートを追加：
+同じ期間のレポートが既に存在するか確認：
+
+```
+mcp__notion__notion-search を使用:
+- query: "PR分析レポート: {SINCE_DATE}"
+```
+
+既存ページが見つかった場合は、そのURLを記録しておく（後で旧ページの削除を案内するため）。
+
+#### 7.3 ページの新規作成
+
+`mcp__notion__notion-create-pages` を使用してレポートを作成：
 
 ```json
 {
@@ -482,7 +495,10 @@ mcp__notion__notion-fetch を使用:
   "pages": [
     {
       "properties": {
-        "Name": "PR分析レポート: {SINCE_DATE} 〜 {TODAY}"
+        "Name": "PR分析レポート: {SINCE_DATE} 〜 {TODAY}",
+        "date:Date:start": "{SINCE_DATE}",
+        "date:Date:end": "{TODAY}",
+        "date:Date:is_datetime": 0
       },
       "content": "{Markdownファイルの内容}"
     }
@@ -490,13 +506,22 @@ mcp__notion__notion-fetch を使用:
 }
 ```
 
-#### 7.3 Notion Markdown形式のポイント
+#### 7.4 旧ページの削除案内
+
+既存ページが見つかっていた場合、ユーザーに旧ページの手動削除を案内：
+```
+新しいレポートを作成しました: {新ページURL}
+旧ページは手動で削除してください: {旧ページURL}
+```
+
+#### 7.5 Notion Markdown形式のポイント
 
 - **テーブル**: 標準Markdown形式がそのまま使える
 - **チェックリスト**: `- [ ]` 形式がそのまま使える
 - **見出し**: `##` 形式がそのまま使える
 - **引用**: `>` 形式がそのまま使える
 - **区切り線**: `---` がそのまま使える
+- **PR番号のリンク**: レポート内のすべてのPR番号（例: `#595`）は、対応するGitHub PRへのMarkdownリンク形式（例: `[#595](https://github.com/pocake/note-ui/pull/595)`）で記述する。「🎯 目標との関連」「PR間の関係性」「継続・フォローアップ」セクションも含め、PR番号が登場するすべての箇所にリンクを付与すること。
 
 **Note**: Notionはページタイトルを自動で表示するため、contentの先頭に `# タイトル` は不要。
 
@@ -531,6 +556,7 @@ gh auth status
 - `NOTION_DATABASE_URL`が未設定の場合: Notion投稿をスキップし、Slack投稿のみ実行
 - データベースへのアクセス権限がない場合: エラー内容を表示し、権限確認を案内
 - MCPツールが利用できない場合: Notion投稿をスキップし、ローカルファイル（JSON/Markdown）を参照と案内
+- `notion-update-page` の `validation_error`: Notion MCPの `replace_content_range` / `replace_content` はNotion内部のブロック構造とMarkdown表現の差異により失敗することがある。この場合はページ更新を諦め、新規ページ作成で対応する（7.3参照）
 
 ## 実行例
 
