@@ -1,6 +1,6 @@
 ---
 name: analyze-prs
-description: GitHub のマージ済み PR を期間指定で取得して LLM で要約・分類・インサイト生成し、Slack と Notion の作業ログに投稿する。実行者がアサインされた Issue/PR、レビュー依頼、PR 本文から抽出した残タスクも一緒に出す。トリガー — 「PR を分析」「週次レポート」「マージした PR をまとめて」「先週/先月の PR を振り返る」「analyze-prs」「作業ログを書く」「PR から Issue 化候補を出す」。github-log リポジトリ前提（env / out/ ディレクトリ / gh CLI が揃っている環境）。
+description: GitHub の PR を期間指定で取得して LLM で要約・分類・インサイト生成し、Slack と Notion の作業ログに投稿する。マージ済みだけでなく「作業中（open かつ期間内にコミットあり）」の PR も作業実績として集計する。実行者がアサインされた Issue/PR、レビュー依頼、PR 本文から抽出した残タスクも一緒に出す。トリガー — 「PR を分析」「週次レポート」「マージした PR をまとめて」「先週/先月の PR を振り返る」「analyze-prs」「作業ログを書く」「PR から Issue 化候補を出す」。github-log リポジトリ前提（env / out/ ディレクトリ / gh CLI が揃っている環境）。
 ---
 
 # Analyze PRs
@@ -10,6 +10,8 @@ description: GitHub のマージ済み PR を期間指定で取得して LLM で
 1. **社内公開前提**: 実行者個人のプライベートな内容（家族・健康・休暇・私的なサイドプロジェクト名など）が混入していた場合は **必ず除外** し、ビジネスとしての成果と文脈だけを残す。
 2. **対象は Organization のみ**: 個人リポジトリの PR は `GITHUB_ORG` で必ず弾く。これを忘れると個人プロジェクトが混入する。
 3. **推論で完結させる**: コンテキスト・関連性・次のアクションは PR 本体／差分／コミット／関連 Issue／外部目標から **推論で抽出する**。`AskUserQuestion` で実行者に選択肢を提示して埋めさせるのは **禁止**。情報不足のときは「推論できなかった」と明示し、空欄のまま進める。
+4. **成果はマージ済みだけではない**: その週の作業実績は「マージ済み PR」＋「作業中 PR（open かつ期間内にコミットあり）」。未マージでも数十コミット・数千行の作業が入ることがあり、マージ済みだけ数えると週の最大の塊を落とす。作業中 PR を「次のアクション」の TODO に流し込まない。
+5. **件数を silent に切らない**: `--limit` で結果が truncate されたまま件数を書くと、レポートが実態より小さく見える。実数を数えたうえで「全 N 件中の抜粋」と明記する。
 
 ## 環境変数
 
@@ -56,20 +58,40 @@ gh search prs \
   --limit 100
 ```
 
+**あわせて「作業中 PR」も必ず取得する**（同じメッセージ内で並列発行）:
+
+```bash
+gh search prs \
+  --author=@me \
+  --owner=${GITHUB_ORG} \
+  --state=open \
+  --updated=${SINCE_DATE}..${TODAY} \
+  --json number,title,url,repository,createdAt,updatedAt,isDraft \
+  --limit 50
+```
+
 **注意**:
 - `--owner=${GITHUB_ORG}` は必須。取得後に `repository.nameWithOwner` のプレフィックスを再確認
-- 0 件のときは「指定期間にマージされた PR は見つかりませんでした」と報告し、JSON も Slack も作らずに終了
+- **マージ済みだけを成果と数えない。** その週の作業実績は「マージ済み PR」＋「作業中 PR（open かつ期間内にコミットあり）」の両方。未マージでも 30 コミット超・数千行規模の作業が入ることがあり、マージ済みだけ見ると週の最大の塊を落とす
+- マージ済み 0 件でも作業中 PR があればレポートを作る。**両方 0 件のときだけ**「指定期間に対象の PR は見つかりませんでした」と報告して終了
+- `--merged-at` の検索はレース条件がある。検索実行後にマージされた PR は入らない。**レポート確定の直前に `--merged-at` を再実行して差分がないか確認する**こと（実例: 検索の 24 分後にマージされた PR を取りこぼした）
 
 ### 3. 各 PR の詳細取得
 
-各 PR について以下を 1 コールで取得する（複数フィールドを `--json` にカンマ区切りで並べる）：
+マージ済み PR・作業中 PR の**両方**について以下を 1 コールで取得する（複数フィールドを `--json` にカンマ区切りで並べる）：
 
 ```bash
 gh pr view {PR番号} --repo {owner/repo} \
-  --json commits,files,reviews,reviewRequests,body
+  --json commits,files,reviews,reviewRequests,body,isDraft
 ```
 
-**並列指示**: 複数 PR を処理するときは、**1 メッセージ内で Bash ツール呼び出しを複数並列に発行する**。逐次実行ではなく一括 fan-out にすること。Step 2 の `gh search prs` と Step 5 の外部目標 fetch も独立しているので、可能なら同じメッセージ内で並列発行できる。
+**作業中 PR は「期間内のコミット」だけを数える**。`commits[].committedDate >= SINCE_DATE` でフィルタし、`期間内コミット数 / 全コミット数` の形で持つ。期間前から続いている PR は、その週にやった分だけが実績。
+
+```bash
+jq '[.commits[] | select(.committedDate >= "'${SINCE_DATE}'")] | length'
+```
+
+**並列指示**: 複数 PR を処理するときは、**1 メッセージ内で Bash ツール呼び出しを複数並列に発行する**。逐次実行ではなく一括 fan-out にすること。Step 2 の `gh search prs` 2 本と Step 5 の外部目標 fetch も独立しているので、可能なら同じメッセージ内で並列発行できる。
 
 ### 4. PR body から構造化情報を抽出
 
@@ -91,28 +113,33 @@ gh api "repos/${GOALS_REPO}/contents/<path>" --jq '.content' | base64 -d
 
 取得データを以下の観点で分析・要約する：
 
-1. **期間サマリー** — 総 PR 数、主な作業領域、期間中の主要成果
-2. **PR 分類** — feat / fix / refactor / docs / other
+1. **期間サマリー** — マージ済み PR 数 + 作業中 PR 数、主な作業領域、期間中の主要成果
+2. **PR 分類** — feat / fix / refactor / docs / other（マージ済みのみ。作業中は別枠）
 3. **各 PR の要約** — タイトルと目的、主な変更（コミット推測）、影響範囲
-4. **インサイト** — 作業パターンの傾向、注目すべき変更、技術的ハイライト
-5. **コンテキストの抽出**（すべて推論で、`AskUserQuestion` 禁止）
+4. **作業中 PR の要約** — マージ済みと同じ粒度で書く。加えて `期間内コミット数 / 全コミット数`、変更規模（files / additions / deletions）、レビュー状態（approved か / AI レビューのみか）を必ず出す。**approved 済みで放置されているものは「マージ可能」と明示する**
+5. **インサイト** — 作業パターンの傾向、注目すべき変更、技術的ハイライト。作業中 PR も対象に含める（未マージでも規模が大きければハイライトに載せる）
+6. **コンテキストの抽出**（すべて推論で、`AskUserQuestion` 禁止）
 
-   PR 本体・コミット・変更ファイル・body 内の `#123` 参照・「概要 / 背景 / 目的」セクション・「〜の続き」「〜を前提に」表現・取得済み外部目標 Markdown から推論する。
+   PR 本体・コミット・変更ファイル・body 内の `#123` 参照・「概要 / 背景 / 目的」セクション・「〜の続き」「〜を前提に」表現・取得済み外部目標 Markdown から推論する。目標との紐づけには**作業中 PR も含める**（`relatedInProgressPRs` として別フィールドに持ち、レポート上は 🚧 を付けて区別する）。
 
-6. **次のアクションの抽出**
+7. **次のアクションの抽出**
 
    **A. アサインされた Issue/PR / レビュー依頼を取得**（いずれも `${GITHUB_ORG}` 限定、**3 件は独立しているので 1 メッセージ内で並列発行する**）:
 
    ```bash
    # 自分にアサインされたオープン Issue
-   gh search issues --assignee=@me --owner=${GITHUB_ORG} --state=open --json number,title,url,repository --limit 20
+   gh search issues --assignee=@me --owner=${GITHUB_ORG} --state=open --json number,title,url,repository --limit 100
 
    # 自分が作者のオープン PR
-   gh search prs --author=@me --owner=${GITHUB_ORG} --state=open --json number,title,url,repository --limit 20
+   gh search prs --author=@me --owner=${GITHUB_ORG} --state=open --json number,title,url,repository --limit 100
 
    # レビューリクエストされた PR（個人宛のみ、チーム経由は除外）
-   gh search prs --review-requested=@me --owner=${GITHUB_ORG} --state=open --json number,title,url,repository --limit 10
+   gh search prs --review-requested=@me --owner=${GITHUB_ORG} --state=open --json number,title,url,repository --limit 30
    ```
+
+   **silent truncation を作らない。** `--limit` は 100 にして実数を数え、レポートに抜粋を載せるときは必ず「全 N 件中の抜粋」と件数を明記する（実例: `--limit 20` で 78 件を 20 件と誤記した）。
+
+   **作業中 PR は次のアクションに二重掲載しない。** Step 2 で取得した作業中 PR は「作業実績」なので、`assignedPRs` からは除外し、残った「期間内に一度も更新のない open PR」だけを**長期滞留（棚卸し対象）**として載せる。
 
    レビュー依頼 PR は Step 3 で取得済みの `reviewRequests` を再利用し、`reviewRequests[].{__typename, login}` で `User` かつ自分の `login` があるものだけ採用（`Team` のみは除外）。
 
@@ -147,7 +174,8 @@ JSON 構造と Markdown テンプレートの完全仕様は [references/output-
 |---|---|
 | `gh auth status` 失敗 | 「`gh auth login` を実行してください」と案内して停止 |
 | 前回の分析が今日 | 「新しい PR はありません」と報告。強制実行は `analyze-prs 1` のように日数引数で |
-| 期間内 PR が 0 件 | 報告のみ。JSON 作成も Slack 投稿もしない |
+| 期間内のマージ済み PR が 0 件 | 作業中 PR があればそれだけでレポートを作る |
+| マージ済みも作業中も 0 件 | 報告のみ。JSON 作成も Slack 投稿もしない |
 | Slack 投稿失敗 | エラーを表示。JSON は保存済みなので手動確認を案内 |
 | Slack 40,000 文字超過 | 要約版を投稿、詳細は JSON 参照と案内 |
 | `NOTION_DATABASE_URL` 未設定 | Notion 投稿をスキップ、Slack のみ実行 |

@@ -31,6 +31,32 @@
       "relatedPRs": [122, 124]
     }
   ],
+  "inProgressPRs": [
+    {
+      "number": 10898,
+      "title": "...",
+      "url": "...",
+      "repository": "owner/repo",
+      "createdAt": "YYYY-MM-DD",
+      "commitsInPeriod": 35,
+      "commitsTotal": 35,
+      "filesChanged": 89,
+      "additions": 2724,
+      "deletions": 1016,
+      "reviewState": "approved / AI レビューのみ / レビュー未了 のいずれかを具体的に",
+      "summary": "マージ済み PR と同じ粒度の要約",
+      "goalRelevance": "どの目標にどう効くか",
+      "openItems": ["未チェックの Test plan 項目", "approve 待ち など"]
+    }
+  ],
+  "inProgressSummary": {
+    "count": 4,
+    "commitsInPeriod": 47,
+    "criterion": "open かつ期間内にコミットがある PR（--author=@me --state=open --updated=<period>）",
+    "note": "期間内に一度も更新のない open PR は実績に数えず nextActions.assignedPRs（長期滞留）へ回す",
+    "largest": "#10898（89 files +2724/-1016）",
+    "mergeable": [10917, 10774]
+  },
   "insights": "LLM によるインサイト",
   "context": {
     "externalGoals": {
@@ -124,12 +150,13 @@
 
 | カテゴリ | 件数 |
 |---------|------|
-| 総PR数 | {totalPRs} |
+| 総PR数（マージ済み） | {totalPRs} |
 | feat | {feat数} |
 | fix | {fix数} |
 | refactor | {refactor数} |
 | docs | {docs数} |
 | other | {other数} |
+| **作業中（未マージ・期間内コミットあり）** | **{inProgressSummary.count}**（期間内コミット計 {inProgressSummary.commitsInPeriod}） |
 
 ## 🔖 PR一覧
 
@@ -147,9 +174,30 @@
 
 ---
 
+## 🚧 作業中（未マージ・期間内にコミットあり）
+
+merge には至っていないが、期間内に実際に手を動かした PR。**次のアクションではなくその週の作業実績**として扱う。期間内コミット合計 {inProgressSummary.commitsInPeriod}。
+
+| PR | 期間内コミット | 変更規模 | レビュー状態 |
+|---|---|---|---|
+| #{number} | {commitsInPeriod}（全 {commitsTotal} 中） | {filesChanged} files `+{additions}/-{deletions}` | {reviewState} |
+
+### [#{number}] {タイトル}
+
+- **期間内の作業**: {日付範囲} に {commitsInPeriod} コミット
+- **規模**: {filesChanged} ファイル `+{additions}/-{deletions}`
+- **内容**: {マージ済み PR と同じ粒度の要約}
+- **目標との関係**: {goalRelevance}
+- **状態**: {reviewState}。{openItems}
+- **URL**: {url}
+
+> approved 済みで放置されているものは「**マージ可能**」と明示する。
+
+---
+
 ## ⭐ 主なハイライト
 
-{この期間の特筆すべき成果}
+{この期間の特筆すべき成果。未マージでも規模が大きい作業中 PR は載せる}
 
 ## 🔧 技術トピック
 
@@ -170,7 +218,9 @@
 
 - **{title}**（{scope}）
   - 狙い: {whySummary}
-  - 関連PR: #{PR番号} / #{PR番号} / ...
+  - 関連PR: #{PR番号} / #{PR番号} / 🚧 #{作業中PR番号}（未マージ）...
+
+> 作業中 PR を紐づけるときは `🚧` を付けて未マージだと分かるようにする（`relatedInProgressPRs`）。
 
 > 原文の「狙い（Why）」「Actions」「評価基準」本文は転載しない。タイトル + 1〜2行サマリ + 関連PRのみに留める。
 
@@ -185,8 +235,8 @@
 ### アサインされたIssue
 {assignedIssues をチェックリスト形式で}
 
-### アサインされたPR
-{assignedPRs をチェックリスト形式で}
+### アサインされたPR（長期滞留・期間内の更新なし）
+{assignedPRs をチェックリスト形式で。期間内にコミットのある PR は「🚧 作業中」へ移してあるのでここには出さない。全 N 件のうち何件かを明記する}
 
 ### レビュー待ち
 {reviewRequested をチェックリスト形式で}
