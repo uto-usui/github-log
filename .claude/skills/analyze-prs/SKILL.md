@@ -105,7 +105,20 @@ PR 本文に含まれる残タスク・関連性・背景を検出する。検�
 gh api "repos/${GOALS_REPO}/contents/<path>" --jq '.content' | base64 -d
 ```
 
-取得した Markdown はそのまま LLM 分析の文脈に渡す。構造化抽出はしない。取得失敗（404 / 認証エラー）は警告だけ出して処理は続行。
+取得した Markdown はそのまま LLM 分析の文脈に渡す。構造化抽出はしない。
+
+**404 のときは警告して続行しない。実パスを確定させてから取得する。** 目標セクションは分析の骨格なので、黙って空にすると「今週の作業が目標にどう効いたか」が丸ごと落ちる（認証エラーのみ警告して続行でよい）。`GOALS_REPO` はローカルに clone されているのが通常なので、**そこを正としてパスを確定させる**：
+
+```bash
+# clone 先を特定（remote が GOALS_REPO と一致するディレクトリ）
+cd ~/work/uto/obsidian/uto-notebook && git remote -v
+# 実パスは git 管理下の表現を使う。ls の出力は使わない
+git ls-files 'database/memos/goal-setting/*'
+```
+
+`git ls-files` を使うのは、**macOS のファイルシステムが日本語ファイル名を NFD で保持する一方 GitHub API は NFC で扱う**ため。`ls` の出力は見た目が同じでも API では 404 になる。ローカルに clone が無いときだけ `gh api "repos/${GOALS_REPO}/contents/<親ディレクトリ>" --jq '.[].path'` で listing する。
+
+確定したパスが `.env` の `GOALS_PATHS` とずれていたら **`.env` を直す**。レポートに「修正が必要」と書くだけでは次回も同じ 404 を踏む（実例: 2 週連続で同じ指摘だけが残っていた）。
 
 社内公開向けのフィルタ・Obsidian Wikilink の扱い・目標構造の推論手がかりは [references/extraction.md](references/extraction.md) を参照。
 
@@ -134,14 +147,14 @@ gh api "repos/${GOALS_REPO}/contents/<path>" --jq '.content' | base64 -d
    gh search prs --author=@me --owner=${GITHUB_ORG} --state=open --json number,title,url,repository --limit 100
 
    # レビューリクエストされた PR（個人宛のみ、チーム経由は除外）
-   gh search prs --review-requested=@me --owner=${GITHUB_ORG} --state=open --json number,title,url,repository --limit 30
+   gh search prs --review-requested=@me --owner=${GITHUB_ORG} --state=open --json number,title,url,repository --limit 100
    ```
 
    **silent truncation を作らない。** `--limit` は 100 にして実数を数え、レポートに抜粋を載せるときは必ず「全 N 件中の抜粋」と件数を明記する（実例: `--limit 20` で 78 件を 20 件と誤記した）。
 
    **作業中 PR は次のアクションに二重掲載しない。** Step 2 で取得した作業中 PR は「作業実績」なので、`assignedPRs` からは除外し、残った「期間内に一度も更新のない open PR」だけを**長期滞留（棚卸し対象）**として載せる。
 
-   レビュー依頼 PR は Step 3 で取得済みの `reviewRequests` を再利用し、`reviewRequests[].{__typename, login}` で `User` かつ自分の `login` があるものだけ採用（`Team` のみは除外）。
+   レビュー依頼 PR は Step 3 の取得対象（自分が作者の PR）に含まれないので、`--review-requested` の結果 1 件ずつに `gh pr view --json reviewRequests` を**並列で**打ち直す。`reviewRequests[].{__typename, login}` で `User` かつ自分の `login` があるものだけ採用（`Team` のみは除外）。チーム経由が大半を占めるので、**個人宛 N 件 / 全 M 件**の形で両方出す（実例: 全 37 件のうち個人宛は 2 件だった）。
 
    **B. PR から残タスクを自動抽出** — 4. の検出パターンを使う
 
