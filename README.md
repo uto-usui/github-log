@@ -14,11 +14,19 @@ Please note that if the 'out' directory does not exist, it will be created autom
 2. Add the following lines to the .env file:
 
 ```bash
+# Required
 SLACK_TOKEN=<your Slack token>
 GITHUB_TOKEN=<your GitHub token>
 GITHUB_USER_NAME=<your GitHub username>
+GITHUB_ORG=<GitHub Organization to scope the analysis (excludes personal repos)>
 SLACK_CHANNEL=<the Slack channel to send messages to>
-NOTION_DATABASE_URL=<Notion database URL for work logs (optional)>
+
+# Optional
+NOTION_DATABASE_URL=<Notion database URL for work logs>
+GOALS_REPO=<owner/repo where personal or team goals are stored (e.g. note-jp/team-goals)>
+GOALS_PATHS=<comma-separated paths to goal markdown files (e.g. individual/usui.md,team/q1-2026.md)>
 ```
 
 Replace each environment variable with the actual values.
+
+`GITHUB_ORG` is consumed only by the `/analyze-prs` slash command to restrict the PR search to a single Organization. The Node CLI (`pnpm start`) still uses `GITHUB_USER_NAME` as before.
