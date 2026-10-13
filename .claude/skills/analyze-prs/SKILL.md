@@ -49,7 +49,7 @@ TODAY=$(date +%Y-%m-%d)
 
 - 前回計上済み（`prs[]` にある）PR はマージ済み一覧から除く
 - 前回作業中（`inProgressPRs[]` にある）でその後マージされた PR は、今回のマージ済みに数え、「前回作業中として計上済み」と注記する
-- 期間内コミットは `committedDate >= SINCE_DATE` のまま数える。前回の終了日のコミットは前回と重なりうるが、1 日分なので数え直さない
+- 期間内コミットは `authoredDate >= SINCE_DATE` のまま数える（Step 3 参照）。前回の終了日のコミットは前回と重なりうるが、1 日分なので数え直さない
 
 ### 2. PR リストの取得
 
@@ -91,11 +91,13 @@ gh pr view {PR番号} --repo {owner/repo} \
   --json commits,files,reviews,reviewRequests,body,isDraft
 ```
 
-**作業中 PR は「期間内のコミット」だけを数える**。`commits[].committedDate >= SINCE_DATE` でフィルタし、`期間内コミット数 / 全コミット数` の形で持つ。期間前から続いている PR は、その週にやった分だけが実績。
+**作業中 PR は「期間内のコミット」だけを数える**。`commits[].authoredDate >= SINCE_DATE` でフィルタし、`期間内コミット数 / 全コミット数` の形で持つ。期間前から続いている PR は、その週にやった分だけが実績。
 
 ```bash
-jq '[.commits[] | select(.committedDate >= "'${SINCE_DATE}'")] | length'
+jq '[.commits[] | select(.authoredDate >= "'${SINCE_DATE}'")] | length'
 ```
+
+`committedDate` は使わない。rebase すると全コミットの `committedDate` が rebase した時刻に書き換わるので、期間前の作業が期間内に数えられる（実例: stack を rebase した週に、実際は 26 のコミットが 101 と出た）。`authoredDate` で数えても、期間内のコミットが「下の層の変更を伝播しただけ」の stack は、PR ごとに並べず 1 行にまとめる。
 
 **並列指示**: 複数 PR を処理するときは、**1 メッセージ内で Bash ツール呼び出しを複数並列に発行する**。逐次実行ではなく一括 fan-out にすること。Step 2 の `gh search prs` 2 本と Step 5 の外部目標 fetch も独立しているので、可能なら同じメッセージ内で並列発行できる。
 
