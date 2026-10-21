@@ -154,3 +154,6 @@ dist
 apps/*/app/output.css
 
 k8s/bin
+
+# 非公開リポジトリの PR タイトルが載っているので公開しない
+docs/log-202402.md
