@@ -1,10 +1,12 @@
 {
   "compilerOptions": {
     "target": "ESNext",
-    "module": "CommonJS",
+    "module": "NodeNext",
+    "rootDir": "src",
     "outDir": "dist",
     "strict": true,
-    "moduleResolution": "node",
+    "moduleResolution": "NodeNext",
+    "types": ["node"],
     "esModuleInterop": true,
     "declaration": true
   },
