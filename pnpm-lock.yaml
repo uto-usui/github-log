@@ -6,8 +6,8 @@ settings:
 
 devDependencies:
   '@slack/web-api':
-    specifier: 8.3.0
-    version: 8.3.0
+    specifier: 8.4.0
+    version: 8.4.0
   '@types/node':
     specifier: 26.6.6
     version: 26.6.6
@@ -15,8 +15,8 @@ devDependencies:
     specifier: 18.0.10
     version: 18.0.10
   prettier:
-    specifier: 3.9.10
-    version: 3.9.10
+    specifier: 3.10.1
+    version: 3.10.1
   typescript:
     specifier: 7.0.2
     version: 7.0.2
@@ -35,8 +35,8 @@ packages:
     engines: {node: '>= 20', npm: '>=9.6.4'}
     dev: true
 
-  /@slack/web-api@8.3.0:
-    resolution: {integrity: sha512-rGHDZggzG658Uc4yebenp3rVfVVToL0w8aOis40EfrstZCxg8FWS+ECGDIkw498Q9jxF/LVKgGbPfUeYntTrUQ==}
+  /@slack/web-api@8.4.0:
+    resolution: {integrity: sha512-SZSa8Xqz0jkvGfw9lLKQt17u44Xi5+O2QRMFo6f2vTEP0fPS+ThxOR0++AwJAPOkf3PKxA7lLmrL9Y4Y2J693w==}
     engines: {node: '>= 20', npm: '>=9.6.4'}
     dependencies:
       '@slack/logger': 5.0.0
@@ -285,8 +285,8 @@ packages:
       p-finally: 1.0.0
     dev: true
 
-  /prettier@3.9.10:
-    resolution: {integrity: sha512-skGHTH1Yb9QvaTC4hWnRTzEYtCpApF0UMBPz+t/0ZPzP8ihefo/btKd+QA7pUE0fEwA1SbS/NmhyEcstdXOIdA==}
+  /prettier@3.10.1:
+    resolution: {integrity: sha512-70vp3ZUYoPlFbF9uiTdXHUUCGEIp7d4+6p+8DYbkm2jP7x/3i/paXVF6dopSI3zd/CEitrZN1rc4i85xWmmXlg==}
     engines: {node: '>=14'}
     hasBin: true
     dev: true
