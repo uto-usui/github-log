@@ -15,8 +15,8 @@
   },
   "packageManager": "pnpm@8.6.12",
   "devDependencies": {
-    "@slack/web-api": "8.4.0",
-    "@types/node": "26.6.6",
+    "@slack/web-api": "8.5.0",
+    "@types/node": "26.6.11",
     "dotenv": "18.0.10",
     "prettier": "3.10.1",
     "typescript": "7.0.2"
